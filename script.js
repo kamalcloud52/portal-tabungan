@@ -65,3 +65,7 @@ function closeSuccessModal() {
     // Refresh iframe untuk update data
     iframe.src = iframe.src;
 }
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js')
+    .then(() => console.log("Service Worker Registered"));
+}
