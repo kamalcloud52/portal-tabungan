@@ -1,6 +1,6 @@
 {
   "name": "Portal Tabungan",
-  "short_name": "Tabungan",
+  "short_name": "Portal Tabungan",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#f4f4f9",
