@@ -201,39 +201,65 @@ function refreshIframe() {
     showToast('Data terbaru dimuat ✅', '🔄');
 }
 
-// ======================= PWA INSTALL PROMPT =======================
+// ======================= PWA INSTALL PROMPT & MANUAL GUIDE =======================
 let deferredPrompt;
+let isPWAInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
+// Cek apakah sudah dalam mode standalone (aplikasi terinstall)
+if (isPWAInstalled) {
+    console.log('✅ Aplikasi sudah berjalan sebagai PWA terinstall.');
+}
+
+// Tangkap event beforeinstallprompt (hanya di Chrome/Edge/Samsung Internet)
 window.addEventListener('beforeinstallprompt', (e) => {
-    // Mencegah popup otomatis
     e.preventDefault();
-    // Simpan event untuk dipanggil nanti
     deferredPrompt = e;
-    console.log('✅ PWA siap diinstall. Klik "Sistem Tabungan Digital" untuk install.');
-    showToast('Aplikasi siap diinstall! Klik teks "Sistem Tabungan Digital" di footer.', '📱');
+    console.log('✅ PWA siap diinstall (beforeinstallprompt terdeteksi).');
+    showToast('Klik "Sistem Tabungan Digital" untuk install aplikasi', '📱');
 });
 
+// Fungsi utama saat tombol diklik
 async function installPWA() {
-    if (!deferredPrompt) {
-        // Cek apakah sudah terinstall
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-        if (isStandalone) {
-            alert('Aplikasi sudah terinstall di perangkat Anda.');
-        } else {
-            alert('❌ Belum bisa install.\n\nKemungkinan penyebab:\n1. Web tidak diakses via HTTPS (gunakan GitHub Pages atau hosting dengan HTTPS)\n2. Ikon aplikasi minimal 192x192 belum tersedia (saat ini hanya favicon.ico 64x64).\n3. Belum ada cukup interaksi dengan web.\n\nSolusi: tambahkan file icon-192.png dan icon-512.png, lalu perbarui manifest.json.');
-        }
+    // Jika sudah terinstall sebagai standalone
+    if (isPWAInstalled) {
+        alert('Aplikasi sudah terinstall di perangkat Anda. Buka dari layar utama.');
         return;
     }
-    // Tampilkan dialog install
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response: ${outcome}`);
-    if (outcome === 'accepted') {
-        showToast('Aplikasi berhasil diinstall!', '🎉');
-    } else {
-        showToast('Instalasi dibatalkan.', '👍');
+
+    // Jika beforeinstallprompt ada, gunakan prompt resmi
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`Hasil install: ${outcome}`);
+        if (outcome === 'accepted') {
+            showToast('Aplikasi berhasil diinstall! Lihat di layar utama.', '🎉');
+        } else {
+            showToast('Instalasi dibatalkan.', '👍');
+        }
+        deferredPrompt = null;
+        return;
     }
-    deferredPrompt = null;
+
+    // Jika tidak ada beforeinstallprompt (karena browser tidak support atau syarat belum lengkap)
+    // Tawarkan panduan manual
+    const manualGuide = confirm(
+        '❌ Tidak dapat memunculkan dialog instalasi otomatis.\n\n' +
+        'Kemungkinan penyebab:\n' +
+        '1. Browser tidak mendukung (gunakan Chrome/Edge/Samsung Internet).\n' +
+        '2. Belum memenuhi syarat PWA (cek manifest & icon 192x192).\n' +
+        '3. Web diakses tidak via HTTPS.\n\n' +
+        'Ingin melihat panduan cara install manual melalui menu browser?'
+    );
+    if (manualGuide) {
+        alert(
+            'CARA INSTALL MANUAL:\n\n' +
+            '🔹 Chrome / Edge / Samsung Internet:\n' +
+            '1. Klik tiga titik (menu) di pojok kanan atas browser.\n' +
+            '2. Pilih "Install app" atau "Add to Home Screen".\n' +
+            '3. Ikuti petunjuk selanjutnya.\n\n' +
+            '🔹 Jika tidak ada menu "Install app", pastikan web sudah memenuhi syarat PWA.'
+        );
+    }
 }
 
 // ======================= REGISTER SERVICE WORKER =======================
@@ -246,7 +272,6 @@ if ('serviceWorker' in navigator) {
 } else {
     console.log('Service Worker tidak didukung browser ini.');
 }
-
 // ======================= INIT =======================
 document.addEventListener('DOMContentLoaded', () => {
     populateNamaList();
