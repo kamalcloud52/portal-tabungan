@@ -209,18 +209,30 @@ window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     // Simpan event untuk dipanggil nanti
     deferredPrompt = e;
-    console.log('PWA siap diinstall. Klik "Sistem Tabungan Digital" untuk install.');
+    console.log('✅ PWA siap diinstall. Klik "Sistem Tabungan Digital" untuk install.');
+    showToast('Aplikasi siap diinstall! Klik teks "Sistem Tabungan Digital" di footer.', '📱');
 });
 
 async function installPWA() {
     if (!deferredPrompt) {
-        showToast('Aplikasi belum siap diinstall. Pastikan menggunakan HTTPS dan manifest.json valid.', '⚠️');
+        // Cek apakah sudah terinstall
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        if (isStandalone) {
+            alert('Aplikasi sudah terinstall di perangkat Anda.');
+        } else {
+            alert('❌ Belum bisa install.\n\nKemungkinan penyebab:\n1. Web tidak diakses via HTTPS (gunakan GitHub Pages atau hosting dengan HTTPS)\n2. Ikon aplikasi minimal 192x192 belum tersedia (saat ini hanya favicon.ico 64x64).\n3. Belum ada cukup interaksi dengan web.\n\nSolusi: tambahkan file icon-192.png dan icon-512.png, lalu perbarui manifest.json.');
+        }
         return;
     }
     // Tampilkan dialog install
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     console.log(`User response: ${outcome}`);
+    if (outcome === 'accepted') {
+        showToast('Aplikasi berhasil diinstall!', '🎉');
+    } else {
+        showToast('Instalasi dibatalkan.', '👍');
+    }
     deferredPrompt = null;
 }
 
@@ -228,9 +240,11 @@ async function installPWA() {
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Service Worker registered:', reg))
-            .catch(err => console.log('Service Worker registration failed:', err));
+            .then(reg => console.log('✅ Service Worker registered:', reg))
+            .catch(err => console.log('❌ Service Worker registration failed:', err));
     });
+} else {
+    console.log('Service Worker tidak didukung browser ini.');
 }
 
 // ======================= INIT =======================
