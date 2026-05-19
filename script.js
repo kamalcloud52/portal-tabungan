@@ -201,6 +201,38 @@ function refreshIframe() {
     showToast('Data terbaru dimuat ✅', '🔄');
 }
 
+// ======================= PWA INSTALL PROMPT =======================
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Mencegah popup otomatis
+    e.preventDefault();
+    // Simpan event untuk dipanggil nanti
+    deferredPrompt = e;
+    console.log('PWA siap diinstall. Klik "Sistem Tabungan Digital" untuk install.');
+});
+
+async function installPWA() {
+    if (!deferredPrompt) {
+        showToast('Aplikasi belum siap diinstall. Pastikan menggunakan HTTPS dan manifest.json valid.', '⚠️');
+        return;
+    }
+    // Tampilkan dialog install
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response: ${outcome}`);
+    deferredPrompt = null;
+}
+
+// ======================= REGISTER SERVICE WORKER =======================
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Service Worker registered:', reg))
+            .catch(err => console.log('Service Worker registration failed:', err));
+    });
+}
+
 // ======================= INIT =======================
 document.addEventListener('DOMContentLoaded', () => {
     populateNamaList();
@@ -212,6 +244,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('refreshIframeBtn').addEventListener('click', refreshIframe);
     document.getElementById('clearHistoryBtn').addEventListener('click', resetLocalHistory);
     document.getElementById('closeSuccessBtn').addEventListener('click', closeSuccessAndRefresh);
+    
+    // Pasang event listener untuk tombol install di footer
+    const installBtn = document.getElementById('installAppBtn');
+    if (installBtn) {
+        installBtn.addEventListener('click', installPWA);
+    }
     
     document.querySelectorAll('.modal-overlay').forEach(modal => {
         modal.addEventListener('click', function(e) {
