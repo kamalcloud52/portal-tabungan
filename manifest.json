@@ -3,8 +3,8 @@
   "short_name": "Portal Tabungan",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#204079",
-  "theme_color": "#204079",
+  "background_color": "#224379",
+  "theme_color": "#224379",
   "icons": [
     {
       "src": "favicon.ico",
