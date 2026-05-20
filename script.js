@@ -148,7 +148,7 @@ async function submitData() {
         return;
     }
     if (!nominalRaw || isNaN(Number(nominalRaw)) || Number(nominalRaw) <= 0) {
-        showToast('Masukkan nominal tabungan yang valid (minimal 500)', '⚠️');
+        showToast('Masukkan nominal tabungan yang valid (minimal 1000)', '⚠️');
         return;
     }
     const nominal = Number(nominalRaw);
@@ -201,32 +201,22 @@ function refreshIframe() {
     showToast('Data terbaru dimuat ✅', '🔄');
 }
 
-// ======================= PWA INSTALL PROMPT & MANUAL GUIDE =======================
+// ======================= PWA INSTALL PROMPT (DIPERKUAT) =======================
 let deferredPrompt;
 let isPWAInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
-// Cek apakah sudah dalam mode standalone (aplikasi terinstall)
-if (isPWAInstalled) {
-    console.log('✅ Aplikasi sudah berjalan sebagai PWA terinstall.');
-}
-
-// Tangkap event beforeinstallprompt (hanya di Chrome/Edge/Samsung Internet)
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    console.log('✅ PWA siap diinstall (beforeinstallprompt terdeteksi).');
+    console.log('✅ beforeinstallprompt terdeteksi! Aplikasi siap diinstall.');
     showToast('Klik "Sistem Tabungan Digital" untuk install aplikasi', '📱');
 });
 
-// Fungsi utama saat tombol diklik
 async function installPWA() {
-    // Jika sudah terinstall sebagai standalone
     if (isPWAInstalled) {
         alert('Aplikasi sudah terinstall di perangkat Anda. Buka dari layar utama.');
         return;
     }
-
-    // Jika beforeinstallprompt ada, gunakan prompt resmi
     if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
@@ -239,25 +229,22 @@ async function installPWA() {
         deferredPrompt = null;
         return;
     }
-
-    // Jika tidak ada beforeinstallprompt (karena browser tidak support atau syarat belum lengkap)
-    // Tawarkan panduan manual
+    // Jika tidak ada beforeinstallprompt, beri panduan manual
     const manualGuide = confirm(
         '❌ Tidak dapat memunculkan dialog instalasi otomatis.\n\n' +
         'Kemungkinan penyebab:\n' +
-        '1. Browser tidak mendukung (gunakan Chrome/Edge/Samsung Internet).\n' +
-        '2. Belum memenuhi syarat PWA (cek manifest & icon 192x192).\n' +
-        '3. Web diakses tidak via HTTPS.\n\n' +
-        'Ingin melihat panduan cara install manual melalui menu browser?'
+        '• Browser bukan Chrome/Edge/Samsung Internet\n' +
+        '• Belum memenuhi syarat PWA (cek manifest & icon)\n' +
+        '• Pernah menolak instalasi sebelumnya\n\n' +
+        'Klik OK untuk melihat panduan install manual.'
     );
     if (manualGuide) {
         alert(
-            'CARA INSTALL MANUAL:\n\n' +
-            '🔹 Chrome / Edge / Samsung Internet:\n' +
-            '1. Klik tiga titik (menu) di pojok kanan atas browser.\n' +
-            '2. Pilih "Install app" atau "Add to Home Screen".\n' +
-            '3. Ikuti petunjuk selanjutnya.\n\n' +
-            '🔹 Jika tidak ada menu "Install app", pastikan web sudah memenuhi syarat PWA.'
+            'PANDUAN INSTALL MANUAL:\n\n' +
+            '1️⃣ Buka menu browser (titik tiga di kanan atas)\n' +
+            '2️⃣ Pilih "Install app" atau "Tambahkan ke layar utama"\n' +
+            '3️⃣ Konfirmasi instalasi\n\n' +
+            'Jika tidak ada menu tersebut, kemungkinan web belum memenuhi syarat PWA.'
         );
     }
 }
@@ -265,13 +252,14 @@ async function installPWA() {
 // ======================= REGISTER SERVICE WORKER =======================
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker.register('./sw.js')
             .then(reg => console.log('✅ Service Worker registered:', reg))
             .catch(err => console.log('❌ Service Worker registration failed:', err));
     });
 } else {
     console.log('Service Worker tidak didukung browser ini.');
 }
+
 // ======================= INIT =======================
 document.addEventListener('DOMContentLoaded', () => {
     populateNamaList();
@@ -284,11 +272,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('clearHistoryBtn').addEventListener('click', resetLocalHistory);
     document.getElementById('closeSuccessBtn').addEventListener('click', closeSuccessAndRefresh);
     
-    // Pasang event listener untuk tombol install di footer
     const installBtn = document.getElementById('installAppBtn');
-    if (installBtn) {
-        installBtn.addEventListener('click', installPWA);
-    }
+    if (installBtn) installBtn.addEventListener('click', installPWA);
     
     document.querySelectorAll('.modal-overlay').forEach(modal => {
         modal.addEventListener('click', function(e) {
@@ -299,4 +284,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('successModal')?.addEventListener('click', (e) => {
         if(e.target === document.getElementById('successModal')) closeSuccessAndRefresh();
     });
+    
+    // Cek status PWA saat load
+    fetch('./manifest.json')
+        .then(res => console.log('Manifest fetch status:', res.status))
+        .catch(err => console.error('Manifest fetch error:', err));
 });
