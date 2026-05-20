@@ -1,7 +1,7 @@
 {
   "name": "Portal Tabungan",
-  "short_name": "Portal Tabungan",
-  "start_url": "index.html",
+  "short_name": "TabunganKu",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#224379",
   "theme_color": "#224379",
@@ -18,7 +18,7 @@
     },
     {
       "src": "icon-512.png",
-      "sizes": "1024x1024",
+      "sizes": "512x512",
       "type": "image/png"
     }
   ]
