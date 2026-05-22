@@ -63,7 +63,7 @@
         </div>
     </div>
 
-    <div class="card-modern iframe-wrapper" style="height: auto; max-height: 550px;">
+    <div class="card-modern iframe-wrapper">
         <div class="iframe-header">
             <span><i class="fas fa-table"></i> <strong>Live Data Tabungan Siswa</strong></span>
             <button id="refreshIframeBtn" class="btn-secondary" style="background: white;"><i class="fas fa-sync-alt"></i> Refresh</button>
@@ -71,13 +71,10 @@
         <div class="custom-table-container">
             <table id="liveTabunganTable">
                 <thead>
-                    </thead>
+                    <tr><th>Memuat data...</th></tr>
+                </thead>
                 <tbody id="liveTabunganBody">
-                    <tr>
-                        <td colspan="6" style="text-align: center; color: #6c757d; padding: 30px;">
-                            <i class="fas fa-spinner fa-pulse"></i> Memuat data dari spreadsheet...
-                        </td>
-                    </tr>
+                    <tr><td colspan="6" style="text-align: center; padding: 30px;"><i class="fas fa-spinner fa-pulse"></i> Mengambil data dari spreadsheet...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -90,7 +87,7 @@
 
 <div id="namaModal" class="modal-overlay">
     <div class="modal-container" onclick="event.stopPropagation()">
-        <div class="modal-header"><i class="fas fa-users"></i> Pilih Nama</div>
+        <div class="modal-header"><i class="fas fa-users"></i> Pilih Nama Siswa</div>
         <div class="name-grid" id="daftarNamaList"></div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeModal('namaModal')">Tutup</button>
