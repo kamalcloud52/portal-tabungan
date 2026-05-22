@@ -1,4 +1,3 @@
-
 // ======================= KONFIGURASI =======================
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyTYyuUAENJLK3p82_LCJ0SaVOpcnrrI6-elsQNi6jVvVTMs_gIEhNGezCrNdIXEvagWA/exec';
 const daftarNama = ['Budi','Dinda','Andi','Amira','Ziha','Dila','Crisa','Faiz','Gilang','Hawari','Rio','Rafa','Satya','Nafila','Fira','Chabibah','Farel'];
@@ -79,6 +78,7 @@ function resetLocalHistory() {
 }
 
 function escapeHtml(str) {
+    if(!str) return '';
     return str.replace(/[&<>]/g, function(m) {
         if (m === '&') return '&amp;';
         if (m === '<') return '&lt;';
@@ -95,7 +95,7 @@ function showToast(msg, icon = '✅') {
     setTimeout(() => toast.remove(), 2000);
 }
 
-// ======================= LIVE DATA GET FETCH =======================
+// ======================= LIVE DATA DENGAN FORMAT RUPIAH YANG JELAS =======================
 async function loadLiveData() {
     const tbody = document.getElementById('liveTabunganBody');
     const thead = document.querySelector('#liveTabunganTable thead');
@@ -109,7 +109,6 @@ async function loadLiveData() {
         if (!response.ok) throw new Error('Respon jaringan bermasalah.');
         
         const data = await response.json();
-        
         if (data.error) throw new Error(data.error);
         
         if (!data || data.length === 0) {
@@ -117,7 +116,7 @@ async function loadLiveData() {
             return;
         }
         
-        // 1. Gambar Baris Header Kolom (Baris ke-0 Google Sheets)
+        // Header tabel (baris pertama dari spreadsheet)
         thead.innerHTML = '';
         let headerHtml = '<tr>';
         data[0].forEach(kolom => {
@@ -126,7 +125,7 @@ async function loadLiveData() {
         headerHtml += '</tr>';
         thead.innerHTML = headerHtml;
         
-        // 2. Gambar Baris Isi Tabel (Baris ke-1 dst)
+        // Isi data
         tbody.innerHTML = '';
         for (let i = 1; i < data.length; i++) {
             const baris = data[i];
@@ -136,31 +135,33 @@ async function loadLiveData() {
             baris.forEach((isiKolom, indexKolom) => {
                 let displayValue = isiKolom;
                 let customClass = '';
+                let isMoney = (indexKolom > 0);
                 
-                // Cek sensitivitas angka dari rumus (menghapus format non-angka jika ada)
-                if (indexKolom > 0 && isiKolom !== '' && !isNaN(Number(String(isiKolom).replace(/[^0-9.-]+/g, "")))) {
-                    var angkaMentah = Number(String(isiKolom).replace(/[^0-9.-]+/g, ""));
+                if (isMoney && isiKolom !== '' && !isNaN(Number(String(isiKolom).replace(/[^0-9.-]+/g, "")))) {
+                    let angkaMentah = Number(String(isiKolom).replace(/[^0-9.-]+/g, ""));
                     if (angkaMentah === 0) {
                         displayValue = '-';
-                        customClass = 'class="cell-zero"';
+                        customClass = 'cell-zero';
                     } else {
-                        displayValue = angkaMentah.toLocaleString('id-ID');
+                        displayValue = `Rp ${angkaMentah.toLocaleString('id-ID')}`;
+                        customClass = 'money-positive';
                     }
-                } else if (isiKolom === 0 || isiKolom === '0' || isiKolom === '') {
+                } else if (isMoney && (isiKolom === 0 || isiKolom === '0' || isiKolom === '')) {
                     displayValue = '-';
-                    customClass = 'class="cell-zero"';
+                    customClass = 'cell-zero';
+                } else if (!isMoney && !isiKolom) {
+                    displayValue = '-';
                 }
                 
-                rowHtml += `<td ${customClass}>${escapeHtml(String(displayValue))}</td>`;
+                rowHtml += `<td class="${customClass}">${escapeHtml(String(displayValue))}</td>`;
             });
             rowHtml += '</tr>';
             tbody.insertAdjacentHTML('beforeend', rowHtml);
         }
-        
-        showToast('Data terbaru dimuat ✅', '🔄');
+        showToast('Data tabungan dimuat ✅', '📊');
     } catch (error) {
         console.error('Gagal memuat live data:', error);
-        tbody.innerHTML = `<tr><td colspan="100%" style="text-align:center; color:#dc2626; padding:30px;"><i class="fas fa-exclamation-triangle"></i> Gagal memuat data live. Cek status Deployment Web App GAS Anda.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="100%" style="text-align:center; color:#dc2626; padding:30px;"><i class="fas fa-exclamation-triangle"></i> Gagal memuat data live. Periksa koneksi atau CORS/ deployment.</td></tr>`;
         showToast('Gagal memuat live data', '❌');
     } finally {
         if (refreshBtn) refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
@@ -186,7 +187,7 @@ function closeModal(id) {
     }, 280);
 }
 
-// ======================= NAMA SELECTOR =======================
+// ======================= NAMA SELECTOR (Satu Kolom) =======================
 function populateNamaList() {
     const container = document.getElementById('daftarNamaList');
     container.innerHTML = '';
@@ -210,7 +211,7 @@ function selectNama(nama) {
     displaySpan.style.fontWeight = '600';
 }
 
-// ======================= SUBMIT =======================
+// ======================= SUBMIT KE SPREADSHEET =======================
 async function submitData() {
     const nama = document.getElementById('namaSiswa').value.trim();
     const nominalRaw = document.getElementById('nominalInput').value.trim();
@@ -247,6 +248,7 @@ async function submitData() {
     } catch (error) {
         console.error(error);
         showToast('Gagal mengirim data! Cek koneksi.', '❌');
+        // hapus dari lokal jika gagal
         let history = getLocalHistory();
         if (history.length > 0 && history[0].nama === nama && history[0].nominal === nominal) {
             history.shift();
@@ -262,75 +264,56 @@ async function submitData() {
 
 function closeSuccessAndRefresh() {
     closeModal('successModal');
-    loadLiveData(); // Memuat data langsung lewat fetch GET secara background
+    loadLiveData();
     updateTotalToday();
 }
 
 function refreshIframe() {
-    loadLiveData(); // Tombol refresh memicu pemanggilan fetch ulang data tabel
+    loadLiveData();
 }
 
-// ======================= PWA INSTALL PROMPT =======================
+// ======================= PWA =======================
 let deferredPrompt;
 let isPWAInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    console.log('✅ beforeinstallprompt terdeteksi! Aplikasi siap diinstall.');
+    console.log('✅ beforeinstallprompt terdeteksi!');
     showToast('Klik "Sistem Tabungan Digital" untuk install aplikasi', '📱');
 });
 
 async function installPWA() {
     if (isPWAInstalled) {
-        alert('Aplikasi sudah terinstall di perangkat Anda. Buka dari layar utama.');
+        alert('Aplikasi sudah terinstall di perangkat Anda.');
         return;
     }
     if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        console.log(`Hasil install: ${outcome}`);
-        if (outcome === 'accepted') {
-            showToast('Aplikasi berhasil diinstall! Lihat di layar utama.', '🎉');
-        } else {
-            showToast('Instalasi dibatalkan.', '👍');
-        }
+        if (outcome === 'accepted') showToast('Aplikasi berhasil diinstall!', '🎉');
+        else showToast('Instalasi dibatalkan.', '👍');
         deferredPrompt = null;
         return;
     }
-    const manualGuide = confirm(
-        '❌ Tidak dapat memunculkan dialog instalasi otomatis.\n\n' +
-        'Kemungkinan penyebab:\n' +
-        '• Browser bukan Chrome/Edge/Samsung Internet\n' +
-        '• Belum memenuhi syarat PWA (cek manifest & icon)\n' +
-        '• Pernah menolak instalasi sebelumnya\n\n' +
-        'Klik OK untuk melihat panduan install manual.'
-    );
+    const manualGuide = confirm('❌ Tidak dapat memunculkan dialog instalasi otomatis.\n\nKlik OK untuk panduan install manual.');
     if (manualGuide) {
-        alert(
-            'PANDUAN INSTALL MANUAL:\n\n' +
-            '1️⃣ Buka menu browser (titik tiga di kanan atas)\n' +
-            '2️⃣ Pilih "Install app" atau "Tambahkan ke layar utama"\n' +
-            '3️⃣ Konfirmasi instalasi\n\n' +
-            'Jika tidak ada menu tersebut, kemungkinan web belum memenuhi syarat PWA.'
-        );
+        alert('PANDUAN INSTALL MANUAL:\n1️⃣ Menu browser (titik tiga)\n2️⃣ Pilih "Install app" atau "Tambahkan ke layar utama"');
     }
 }
 
-// ======================= REGISTER SERVICE WORKER =======================
+// Service Worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('✅ Service Worker registered:', reg))
-            .catch(err => console.log('❌ Service Worker registration failed:', err));
+            .then(reg => console.log('✅ Service Worker registered'))
+            .catch(err => console.log('❌ SW registration failed', err));
     });
-} else {
-    console.log('Service Worker tidak didukung browser ini.');
 }
 
 // ======================= INIT =======================
 document.addEventListener('DOMContentLoaded', () => {
-    loadLiveData(); // Ambil data tabel kustom pertama kali aplikasi dibuka
+    loadLiveData();
     populateNamaList();
     renderLocalHistory();
     updateTotalToday();
@@ -353,8 +336,4 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('successModal')?.addEventListener('click', (e) => {
         if(e.target === document.getElementById('successModal')) closeSuccessAndRefresh();
     });
-    
-    fetch('./manifest.json')
-        .then(res => console.log('Manifest fetch status:', res.status))
-        .catch(err => console.error('Manifest fetch error:', err));
 });
