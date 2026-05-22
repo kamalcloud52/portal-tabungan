@@ -1,3 +1,4 @@
+
 // ======================= KONFIGURASI =======================
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyTYyuUAENJLK3p82_LCJ0SaVOpcnrrI6-elsQNi6jVvVTMs_gIEhNGezCrNdIXEvagWA/exec';
 const daftarNama = ['Budi','Dinda','Andi','Amira','Ziha','Dila','Crisa','Faiz','Gilang','Hawari','Rio','Rafa','Satya','Nafila','Fira','Chabibah','Farel'];
@@ -92,6 +93,78 @@ function showToast(msg, icon = '✅') {
     toast.innerHTML = `${icon} ${msg}`;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
+}
+
+// ======================= LIVE DATA GET FETCH =======================
+async function loadLiveData() {
+    const tbody = document.getElementById('liveTabunganBody');
+    const thead = document.querySelector('#liveTabunganTable thead');
+    const refreshBtn = document.getElementById('refreshIframeBtn');
+    
+    if (!tbody || !thead) return;
+    if (refreshBtn) refreshBtn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Memuat...';
+    
+    try {
+        const response = await fetch(SCRIPT_URL);
+        if (!response.ok) throw new Error('Respon jaringan bermasalah.');
+        
+        const data = await response.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="100%" style="text-align:center; padding:20px;">Data kosong atau tersembunyi</td></tr>';
+            return;
+        }
+        
+        // 1. Gambar Baris Header Kolom (Baris ke-0 Google Sheets)
+        thead.innerHTML = '';
+        let headerHtml = '<tr>';
+        data[0].forEach(kolom => {
+            headerHtml += `<th>${escapeHtml(String(kolom))}</th>`;
+        });
+        headerHtml += '</tr>';
+        thead.innerHTML = headerHtml;
+        
+        // 2. Gambar Baris Isi Tabel (Baris ke-1 dst)
+        tbody.innerHTML = '';
+        for (let i = 1; i < data.length; i++) {
+            const baris = data[i];
+            if (!baris[0] && baris.every(val => val === '')) continue; 
+            
+            let rowHtml = '<tr>';
+            baris.forEach((isiKolom, indexKolom) => {
+                let displayValue = isiKolom;
+                let customClass = '';
+                
+                // Cek sensitivitas angka dari rumus (menghapus format non-angka jika ada)
+                if (indexKolom > 0 && isiKolom !== '' && !isNaN(Number(String(isiKolom).replace(/[^0-9.-]+/g, "")))) {
+                    var angkaMentah = Number(String(isiKolom).replace(/[^0-9.-]+/g, ""));
+                    if (angkaMentah === 0) {
+                        displayValue = '-';
+                        customClass = 'class="cell-zero"';
+                    } else {
+                        displayValue = angkaMentah.toLocaleString('id-ID');
+                    }
+                } else if (isiKolom === 0 || isiKolom === '0' || isiKolom === '') {
+                    displayValue = '-';
+                    customClass = 'class="cell-zero"';
+                }
+                
+                rowHtml += `<td ${customClass}>${escapeHtml(String(displayValue))}</td>`;
+            });
+            rowHtml += '</tr>';
+            tbody.insertAdjacentHTML('beforeend', rowHtml);
+        }
+        
+        showToast('Data terbaru dimuat ✅', '🔄');
+    } catch (error) {
+        console.error('Gagal memuat live data:', error);
+        tbody.innerHTML = `<tr><td colspan="100%" style="text-align:center; color:#dc2626; padding:30px;"><i class="fas fa-exclamation-triangle"></i> Gagal memuat data live. Cek status Deployment Web App GAS Anda.</td></tr>`;
+        showToast('Gagal memuat live data', '❌');
+    } finally {
+        if (refreshBtn) refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+    }
 }
 
 // ======================= MODAL =======================
@@ -189,19 +262,15 @@ async function submitData() {
 
 function closeSuccessAndRefresh() {
     closeModal('successModal');
-    const iframe = document.getElementById('monitoringIframe');
-    if (iframe) iframe.src = iframe.src;
+    loadLiveData(); // Memuat data langsung lewat fetch GET secara background
     updateTotalToday();
-    showToast('Data terbaru dimuat ✅', '🔄');
 }
 
 function refreshIframe() {
-    const iframe = document.getElementById('monitoringIframe');
-    iframe.src = iframe.src;
-    showToast('Data terbaru dimuat ✅', '🔄');
+    loadLiveData(); // Tombol refresh memicu pemanggilan fetch ulang data tabel
 }
 
-// ======================= PWA INSTALL PROMPT (DIPERKUAT) =======================
+// ======================= PWA INSTALL PROMPT =======================
 let deferredPrompt;
 let isPWAInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
@@ -229,7 +298,6 @@ async function installPWA() {
         deferredPrompt = null;
         return;
     }
-    // Jika tidak ada beforeinstallprompt, beri panduan manual
     const manualGuide = confirm(
         '❌ Tidak dapat memunculkan dialog instalasi otomatis.\n\n' +
         'Kemungkinan penyebab:\n' +
@@ -262,6 +330,7 @@ if ('serviceWorker' in navigator) {
 
 // ======================= INIT =======================
 document.addEventListener('DOMContentLoaded', () => {
+    loadLiveData(); // Ambil data tabel kustom pertama kali aplikasi dibuka
     populateNamaList();
     renderLocalHistory();
     updateTotalToday();
@@ -285,7 +354,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if(e.target === document.getElementById('successModal')) closeSuccessAndRefresh();
     });
     
-    // Cek status PWA saat load
     fetch('./manifest.json')
         .then(res => console.log('Manifest fetch status:', res.status))
         .catch(err => console.error('Manifest fetch error:', err));
